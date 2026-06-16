@@ -4,9 +4,20 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>stories-ts</title>
+    <title>TypeScript Slide</title>
+    <link rel="stylesheet" href="src/style.css">
   </head>
   <body>
+    <h1>Slide Stories</h1>
+    <div id="slide">
+      <div id="slide-elements">
+        <img class="active" src="./src/assets/imagem_1.jpg" alt="lobo">
+        <img src="./src/assets/imagem_2.jpg" alt="lobo">
+        <img src="./src/assets/imagem_3.jpg" alt="lobo">
+        <video playsinline src="./src/assets/video.mp4"></video>
+      </div>
+      <div id="slide-controls"></div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
