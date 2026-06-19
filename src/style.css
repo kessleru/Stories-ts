@@ -3,7 +3,17 @@ body {
   font-family: sans-serif;
 }
 
-img, video {
+body.paused {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  touch-action: manipulation;
+}
+
+img,
+video {
   max-width: 100%;
   display: block;
 }
@@ -30,13 +40,19 @@ h1 {
 }
 
 #slide {
-  display: grid
+  display: grid;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 20px auto;
+  max-width: 800px;
+  background: #000;
 }
 
 #slide-controls {
   grid-area: 1/1;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+  position: relative;
 }
 
 #slide-controls button {
@@ -44,4 +60,37 @@ h1 {
   appearance: none;
   -webkit-tap-highlight-color: transparent;
   border: none;
+}
+
+.slide-thumb {
+  display: flex;
+  position: absolute;
+  width: 100%;
+  pointer-events: none;
+}
+
+.slide-thumb > span {
+  flex: 1;
+  display: block;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 5px;
+  border-radius: 4px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.slide-thumb .thumb-item.active {
+  display: block;
+  height: inherit;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: inherit;
+  transform: translateX(-100%);
+  animation: thumb-progress linear forwards running;
+}
+
+@keyframes thumb-progress {
+  to {
+    transform: initial;
+  }
 }
