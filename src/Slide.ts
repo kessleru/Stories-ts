@@ -3,6 +3,7 @@ export default class Slide {
   slides: Element[];
   controls: Element;
   time: number;
+  interval: number | undefined = undefined;
   index: number = 0;
   slide: Element;
   constructor(
@@ -19,6 +20,7 @@ export default class Slide {
     this.index = 0;
     this.slide = this.slides[this.index];
 
+    this.auto(this.time);
     this.init();
   }
   hide(slide: Element) {
@@ -30,12 +32,25 @@ export default class Slide {
     this.slides.forEach((slide) => this.hide(slide));
     this.slide.classList.add('active');
   }
+  auto(time: number) {
+    if (this.interval) {
+      clearInterval(this.interval);
+    }
+
+    this.interval = setInterval(() => {
+      this.next();
+    }, time);
+  }
   prev() {
     this.show((this.index - 1 + this.slides.length) % this.slides.length);
+
+    this.auto(this.time);
     // this.index - 1 >= 0 ? this.index-- : (this.index = this.slides.length - 1);
   }
   next() {
     this.show((this.index + 1) % this.slides.length);
+
+    this.auto(this.time);
     // this.index + 1 < this.slides.length ? this.index++ : (this.index = 0);
   }
   private addControls() {
