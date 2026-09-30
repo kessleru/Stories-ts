@@ -6,7 +6,7 @@
  * Sem dependências. Todo texto de terminal nas cenas lá embaixo é cópia de uma
  * execução real — se a saída mudar, cole a nova e rode de novo.
  */
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SAIDA = import.meta.dirname;
@@ -130,7 +130,7 @@ ${linhasSvg(linhas, { x: 20, y0: +(44 + alturaLinha * 0.75).toFixed(1), alturaLi
     </g>`;
 }
 
-function banner({ arquivo, titulo, tagline, stack, pills = [], cores, card, rotulo }) {
+function banner({ arquivo, titulo, tagline, stack, pills = [], cores, card, arte = '', defs = '', circulos = true, rotulo }) {
   const { de, ate, texto = '#ffffff', suave = 'rgba(255,255,255,.78)', circulo = '#ffffff', circuloOpacidade = 0.08 } = cores;
   const tamanhoTitulo = titulo.length > 16 ? 44 : 52;
 
@@ -163,11 +163,14 @@ function banner({ arquivo, titulo, tagline, stack, pills = [], cores, card, rotu
       <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#000000" flood-opacity=".28"/>
     </filter>
     <clipPath id="recorte"><rect width="428" height="252" rx="18"/></clipPath>
+    <clipPath id="moldura"><rect width="1200" height="380" rx="24"/></clipPath>${defs}
   </defs>
 
   <rect width="1200" height="380" rx="24" fill="url(#bg)"/>
-  <circle cx="1105" cy="60" r="190" fill="${circulo}" opacity="${circuloOpacidade}"/>
-  <circle cx="110" cy="360" r="150" fill="${circulo}" opacity="${circuloOpacidade * 0.8}"/>
+${circulos ? `  <circle cx="1105" cy="60" r="190" fill="${circulo}" opacity="${circuloOpacidade}"/>
+  <circle cx="110" cy="360" r="150" fill="${circulo}" opacity="${circuloOpacidade * 0.8}"/>` : ''}
+  <g clip-path="url(#moldura)">${arte}
+  </g>
 
   <text x="72" y="148" font-family="${FONTE_UI}" font-size="${tamanhoTitulo}" font-weight="800" letter-spacing="-1" fill="${texto}">${escapar(titulo)}</text>
   <text x="74" y="196" font-family="${FONTE_UI}" font-size="24" font-weight="600" fill="${texto}">${escapar(tagline)}</text>
@@ -177,15 +180,38 @@ function banner({ arquivo, titulo, tagline, stack, pills = [], cores, card, rotu
     ${pillsSvg}
   </g>
 
-  <g transform="translate(700,64)">
+${card ? `  <g transform="translate(700,64)">
     <rect width="428" height="252" rx="18" fill="${card.fundo ?? '#ffffff'}" filter="url(#sombra)"/>
     <g clip-path="url(#recorte)">${card.conteudo}
     </g>
-  </g>
+  </g>` : ''}
 </svg>
 `;
   writeFileSync(join(SAIDA, arquivo), svg);
   console.log(`✓ ${arquivo}  (1200×380)`);
+}
+
+/**
+ * Embute um SVG do próprio repositório (logo, ícone) dentro do banner, na
+ * caixa x/y/largura/altura. Ids ganham prefixo para não colidirem entre si.
+ * `trocar` substitui cores literais (ex.: { white: '#1a1a1a' }).
+ */
+function svgArquivo(caminho, { x, y, largura, altura, trocar = {}, extra = '' }) {
+  let bruto = readFileSync(join(SAIDA, '..', '..', caminho), 'utf8')
+    .replace(/<\?xml[^>]*>/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '');
+  const raiz = bruto.match(/<svg[ >][^>]*>/)[0];
+  const viewBox =
+    (raiz.match(/viewBox="([^"]+)"/) ?? [])[1] ??
+    `0 0 ${parseFloat(raiz.match(/width="([^"]+)"/)[1])} ${parseFloat(raiz.match(/height="([^"]+)"/)[1])}`;
+  const prefixo = caminho.replace(/[^a-z0-9]/gi, '');
+  let miolo = bruto.slice(bruto.indexOf(raiz) + raiz.length, bruto.lastIndexOf('</svg>'));
+  miolo = miolo
+    .replace(/id="([^"]+)"/g, `id="${prefixo}-$1"`)
+    .replace(/url\(#([^)]+)\)/g, `url(#${prefixo}-$1)`)
+    .replace(/href="#([^"]+)"/g, `href="#${prefixo}-$1"`);
+  for (const [de, para] of Object.entries(trocar)) miolo = miolo.split(`"${de}"`).join(`"${para}"`);
+  return `<svg x="${x}" y="${y}" width="${largura}" height="${altura}" viewBox="${viewBox}" ${extra}>${miolo.trim()}</svg>`;
 }
 
 // Atalhos ANSI para escrever as cenas
@@ -202,8 +228,8 @@ const _ = '\x1b[0m';
 // ---------------------------------------------------------------------
 // Cenas
 // ---------------------------------------------------------------------
-// Card: a peça que torna a pausa possível — um setInterval que lembra quanto
-// tempo faltava (src/Interval.ts, trecho).
+// Arte: um celular com o slide pausado — quatro barras de progresso (a segunda
+// pela metade, congelada), o ícone de pausa e as duas metades tocáveis.
 banner({
   arquivo: 'banner.svg',
   titulo: 'Slide Stories',
@@ -215,22 +241,36 @@ banner({
     { texto: 'Segurar pausa', fundo: 'rgba(255,255,255,.18)', cor: '#ffffff' },
     { texto: 'Vídeo', fundo: 'rgba(255,255,255,.18)', cor: '#ffffff' },
   ],
-  card: {
-    fundo: '#0d1117',
-    conteudo: cardTerminal({
-      titulo: 'src/Interval.ts',
-      linhas: [
-        `${mg}pause${_}() {`,
-        `  ${az}const${_} passed = Date.${mg}now${_}() - ${az}this${_}.start;`,
-        `  ${az}this${_}.timeLeft = ${az}this${_}.timeLeft - passed;`,
-        `  ${az}this${_}.${mg}clear${_}();`,
-        `}`,
-        `${mg}continue${_}() {`,
-        `  ${az}this${_}.${mg}clear${_}();`,
-        `  ${az}this${_}.id = ${mg}setInterval${_}(${az}this${_}.handler, ${az}this${_}.timeLeft);`,
-        `  ${az}this${_}.start = Date.${mg}now${_}();`,
-        `}`,
-      ],
-    }),
-  },
+  defs: `
+    <linearGradient id="ceu" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1b2735"/>
+      <stop offset="100%" stop-color="#3a4a3f"/>
+    </linearGradient>
+    <clipPath id="tela"><rect width="176" height="316" rx="20"/></clipPath>`,
+  arte: `
+  <g transform="translate(830,32)" filter="url(#sombra)">
+    <rect x="-8" y="-8" width="192" height="332" rx="28" fill="#111111"/>
+    <g clip-path="url(#tela)">
+      <rect width="176" height="316" fill="url(#ceu)"/>
+      <circle cx="128" cy="78" r="22" fill="#f5f1dc" opacity=".9"/>
+      <path d="M0 230L40 170L70 200L110 140L176 220V316H0z" fill="#26332b"/>
+      <path d="M0 262L50 214L96 250L140 206L176 236V316H0z" fill="#18211b"/>
+      <path d="M62 262l6-22 8 6 6-10 4 12 10 4-8 8 2 12-12-4-10 8z" fill="#8b8f86"/>
+      ${[0, 1, 2, 3].map((i) => `<rect x="${8 + i * 41}" y="10" width="37" height="3" rx="1.5" fill="#ffffff" opacity=".3"/>`).join('')}
+      <rect x="8" y="10" width="37" height="3" rx="1.5" fill="#ffffff"/>
+      <rect x="49" y="10" width="18" height="3" rx="1.5" fill="#ffffff"/>
+      <rect x="0" y="0" width="88" height="316" fill="#ffffff" opacity=".05"/>
+      <circle cx="88" cy="150" r="26" fill="#000000" opacity=".45"/>
+      <rect x="78" y="138" width="7" height="24" rx="2" fill="#ffffff"/>
+      <rect x="91" y="138" width="7" height="24" rx="2" fill="#ffffff"/>
+    </g>
+  </g>
+  <g font-family="system-ui,'Segoe UI',sans-serif" font-size="14" font-weight="600" fill="#ffffff">
+    <text x="1034" y="84">‹ esquerda: volta</text>
+    <text x="1034" y="108">direita: avança ›</text>
+    <text x="1034" y="176">segure: pausa</text>
+    <text x="1034" y="244">foto: 3 segundos</text>
+    <text x="1034" y="268" opacity=".85">vídeo: a duração</text>
+    <text x="1034" y="288" opacity=".85">do próprio vídeo</text>
+  </g>`,
 });
